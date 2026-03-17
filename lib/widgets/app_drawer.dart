@@ -7,6 +7,10 @@ class AppDrawer extends StatelessWidget {
   final VoidCallback onLogout;
   final VoidCallback onProfileTap;
   final bool isAdmin;
+  final List<Map<String, dynamic>> items;
+  final void Function(int) onDelete;
+  final void Function(int, Map<String, dynamic>) onUpdate;
+  final String? currentUser;
 
   const AppDrawer({
     super.key,
@@ -16,6 +20,10 @@ class AppDrawer extends StatelessWidget {
     required this.onLogout,
     required this.onProfileTap,
     this.isAdmin = false,
+    required this.items,
+    required this.onDelete,
+    required this.onUpdate,
+    required this.currentUser,
   });
 
   @override
@@ -25,7 +33,7 @@ class AppDrawer extends StatelessWidget {
         children: [
           // Drawer Header
           Container(
-            height: 200,
+            constraints: const BoxConstraints(minHeight: 160),
             width: double.infinity,
             decoration: const BoxDecoration(
               gradient: LinearGradient(
@@ -116,7 +124,16 @@ class AppDrawer extends StatelessWidget {
                   title: const Text('My Listings'),
                   onTap: () {
                     Navigator.pop(context);
-                    Navigator.pushNamed(context, '/myListings');
+                    Navigator.pushNamed(
+                      context,
+                      '/myListings',
+                      arguments: {
+                        'items': items,
+                        'currentUser': currentUser,
+                        'onDelete': onDelete,
+                        'onUpdate': onUpdate,
+                      },
+                    );
                   },
                 ),
                 ListTile(
@@ -148,12 +165,18 @@ class AppDrawer extends StatelessWidget {
                 ListTile(
                   leading: const Icon(Icons.settings, color: Colors.black54),
                   title: const Text('Settings'),
-                  onTap: () => Navigator.pushNamed(context, '/settings'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.pushNamed(context, '/settings');
+                  },
                 ),
                 ListTile(
                   leading: const Icon(Icons.info, color: Colors.black54),
                   title: const Text('About'),
-                  onTap: () => Navigator.pushNamed(context, '/about'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.pushNamed(context, '/about');
+                  },
                 ),
               ],
             ),
@@ -162,7 +185,7 @@ class AppDrawer extends StatelessWidget {
           // Logout Button
           SafeArea(
             child: Padding(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(14),
               child: OutlinedButton.icon(
                 onPressed: onLogout,
                 icon: const Icon(Icons.logout, color: Colors.redAccent),
@@ -173,9 +196,12 @@ class AppDrawer extends StatelessWidget {
                 style: OutlinedButton.styleFrom(
                   side: const BorderSide(color: Colors.redAccent),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(6),
                   ),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 12,
+                    horizontal: 56,
+                  ),
                 ),
               ),
             ),

@@ -65,7 +65,10 @@ class _ProfilePageState extends State<ProfilePage> {
         _loading = false;
       });
     } catch (e) {
-      debugPrint('❌ Failed to load profile: $e');
+      print('❌ Failed to load profile: $e');
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to load profile: $e')));
       setState(() => _loading = false);
     }
   }

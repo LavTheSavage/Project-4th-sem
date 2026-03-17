@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:project/pages/auth_gate.dart';
+import 'package:project/routes/app_routes.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 final supabase = Supabase.instance.client;
@@ -59,7 +60,8 @@ class MyAppRoot extends StatelessWidget {
         ),
       ),
       debugShowCheckedModeBanner: false,
-      home: const AuthGate(), // ✅ SINGLE ENTRY POINT
+      home: const AuthGate(),
+      onGenerateRoute: AppRoutes.generateRoute,
     );
   }
 }

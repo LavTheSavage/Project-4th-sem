@@ -40,9 +40,12 @@ class _ItemFormPageState extends State<ItemFormPage> {
   bool get isEditMode => widget.existingItem != null;
 
   @override
-  Future<void> initState() async {
+  void initState() {
     super.initState();
+    _initializeForm();
+  }
 
+  Future<void> _initializeForm() async {
     _nameController = TextEditingController(
       text: widget.existingItem?['name'] ?? '',
     );

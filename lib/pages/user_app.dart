@@ -37,7 +37,11 @@ class _MyAppState extends State<MyApp> {
   int _selectedIndex = 0;
   final List<Map<String, dynamic>> _notifications = [];
   void _openAddItemPage() async {
-    final result = await Navigator.pushNamed(context, '/addItem');
+    final result = await Navigator.pushNamed(
+      context,
+      '/addItem',
+      arguments: {'categories': appCategories},
+    );
 
     if (result != null && result is Map<String, dynamic>) {
       await ItemService().addItem(result);
@@ -104,7 +108,9 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
+
     _loadItems();
+    _listenToItemChanges();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadUserProfile();
@@ -117,6 +123,7 @@ class _MyAppState extends State<MyApp> {
   @override
   void dispose() {
     _itemsChannel?.unsubscribe();
+    _itemsChannel = null;
     _reloadTimer?.cancel();
     super.dispose();
   }
@@ -165,8 +172,7 @@ class _MyAppState extends State<MyApp> {
         .delete()
         .eq('id', id)
         .eq('owner_id', _currentUserId ?? '');
-
-    setState(() => _items.removeAt(index));
+    if (mounted) setState(() => _items.removeAt(index));
   }
 
   Future<void> _updateItem(int index, Map<String, dynamic> updated) async {
@@ -273,7 +279,14 @@ class _MyAppState extends State<MyApp> {
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         backgroundColor: const Color(0xFF1E88E5),
-        actions: [],
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.menu),
+            onPressed: () {
+              Scaffold.of(context).openDrawer();
+            },
+          ),
+        ),
       ),
       drawer: AppDrawer(
         userName: _userName,
@@ -282,6 +295,10 @@ class _MyAppState extends State<MyApp> {
         onLogout: _logout,
         onProfileTap: _openProfilePage,
         isAdmin: _isAdmin,
+        items: _items,
+        currentUser: currentUserId,
+        onDelete: (index) => _deleteItem(index),
+        onUpdate: (index, data) => _updateItem(index, data),
       ),
 
       bottomNavigationBar: BottomNavigationBar(
