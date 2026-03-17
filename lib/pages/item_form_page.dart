@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:project/main.dart';
@@ -5,7 +6,7 @@ import 'package:project/services/storage_service.dart';
 import 'package:image_picker/image_picker.dart';
 // import your supabase & ItemService here
 // import 'package:hamrosaman/services/item_service.dart';
-// import 'package:hamrosaman/main.dart'; // only if needed
+// import 'package:hamrosaman/main.dart';
 
 class ItemFormPage extends StatefulWidget {
   final List<String> categories;
@@ -18,7 +19,6 @@ class ItemFormPage extends StatefulWidget {
 }
 
 class _ItemFormPageState extends State<ItemFormPage> {
-  // Color palette
   static const Color kPrimary = Color(0xFF1E88E5);
   static const Color kAccent = Color(0xFFFFC107);
   static const Color kBackground = Color(0xFFF5F7FA);
@@ -29,11 +29,14 @@ class _ItemFormPageState extends State<ItemFormPage> {
   late TextEditingController _priceController;
   late TextEditingController _descriptionController;
   late TextEditingController _locationController;
-
+  List<XFile> get _allImagesPreview => [
+    ..._existingImages.map((e) => XFile(e)),
+    ..._newImages,
+  ];
   String? _selectedCategory;
   String? _selectedCondition;
-
-  List<XFile> _pickedImages = [];
+  final List<String> _existingImages = []; // from DB (URLs)
+  final List<XFile> _newImages = []; // newly picked
   bool _isLoading = false;
   static const int _maxImages = 5;
 
@@ -56,15 +59,19 @@ class _ItemFormPageState extends State<ItemFormPage> {
       text: widget.existingItem?['description'] ?? '',
     );
 
-    _locationController = TextEditingController();
-    final profile = await supabase
-        .from('profiles')
-        .select('default_address')
-        .eq('id', supabase.auth.currentUser!.id)
-        .single();
+    _locationController = TextEditingController(
+      text: widget.existingItem?['location'] ?? '',
+    );
 
-    _locationController.text = profile['default_address'] ?? '';
+    if (!isEditMode) {
+      final profile = await supabase
+          .from('profiles')
+          .select('default_address')
+          .eq('id', supabase.auth.currentUser!.id)
+          .single();
 
+      _locationController.text = profile['default_address'] ?? '';
+    }
     _selectedCategory = widget.existingItem?['category'];
     if (_selectedCategory == 'All') _selectedCategory = null;
     if (_selectedCategory == null && widget.categories.isNotEmpty) {
@@ -76,15 +83,23 @@ class _ItemFormPageState extends State<ItemFormPage> {
 
     _selectedCondition = widget.existingItem?['condition'] ?? 'New';
 
-    if (widget.existingItem != null) {
-      final raw = widget.existingItem!['images'];
-      if (raw is List) {
-        _pickedImages = raw.whereType<String>().map((p) => XFile(p)).toList();
-      } else if (widget.existingItem!['image'] != null &&
-          widget.existingItem!['image'] is String) {
-        _pickedImages = [XFile(widget.existingItem!['image'])];
+    // ✅ LOAD EXISTING IMAGES
+    final rawImages = widget.existingItem?['images'];
+
+    if (rawImages != null) {
+      if (rawImages is List) {
+        _existingImages.addAll(rawImages.whereType<String>());
+      } else if (rawImages is String) {
+        try {
+          final decoded = jsonDecode(rawImages);
+          if (decoded is List) {
+            _existingImages.addAll(decoded.whereType<String>());
+          }
+        } catch (_) {}
       }
     }
+
+    if (mounted) setState(() {});
   }
 
   @override
@@ -97,7 +112,7 @@ class _ItemFormPageState extends State<ItemFormPage> {
   }
 
   Future<void> _pickImages() async {
-    if (_pickedImages.length >= _maxImages) {
+    if (_allImagesPreview.length >= _maxImages) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Max 5 images allowed')));
@@ -110,9 +125,12 @@ class _ItemFormPageState extends State<ItemFormPage> {
       final List<XFile> images = await picker.pickMultiImage(imageQuality: 82);
       if (!mounted) return;
       if (images.isNotEmpty) {
-        final allowed = images.take(_maxImages - _pickedImages.length);
+        final allowed = images.take(
+          _maxImages - (_existingImages.length + _newImages.length),
+        );
+
         setState(() {
-          _pickedImages.addAll(allowed);
+          _newImages.addAll(allowed);
         });
       }
     } catch (_) {
@@ -125,9 +143,14 @@ class _ItemFormPageState extends State<ItemFormPage> {
     }
   }
 
-  void _removeImage(int idx) {
-    if (idx < 0 || idx >= _pickedImages.length) return;
-    setState(() => _pickedImages.removeAt(idx));
+  void _removeImage(int index, bool isExisting) {
+    setState(() {
+      if (isExisting) {
+        _existingImages.removeAt(index);
+      } else {
+        _newImages.removeAt(index);
+      }
+    });
   }
 
   void _previewImage(XFile img, int index) {
@@ -150,24 +173,15 @@ class _ItemFormPageState extends State<ItemFormPage> {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
+
     try {
       final storage = StorageService();
+
       final uploadedUrls = await Future.wait(
-        _pickedImages.map((img) => storage.uploadImage(img)),
+        _newImages.map((img) => storage.uploadImage(img)),
       );
 
-      List<String> existingUrls = [];
-      List<XFile> newImages = [];
-
-      for (var img in _pickedImages) {
-        if (img.path.startsWith('http')) {
-          existingUrls.add(img.path); // already uploaded
-        } else {
-          newImages.add(img); // new image
-        }
-      }
-
-      final allImages = [...existingUrls, ...uploadedUrls];
+      final allImages = [..._existingImages, ...uploadedUrls];
       final payload = {
         'name': _nameController.text.trim(),
         'price': double.parse(_priceController.text.trim()),
@@ -235,18 +249,32 @@ class _ItemFormPageState extends State<ItemFormPage> {
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(10),
-              child: Image.file(
-                File(file.path),
-                width: 90,
-                height: 90,
-                fit: BoxFit.cover,
-              ),
+              child: file.path.startsWith('http')
+                  ? Image.network(
+                      file.path,
+                      width: 90,
+                      height: 90,
+                      fit: BoxFit.cover,
+                    )
+                  : Image.file(
+                      File(file.path),
+                      width: 90,
+                      height: 90,
+                      fit: BoxFit.cover,
+                    ),
             ),
             Positioned(
               top: 6,
               right: 6,
               child: InkWell(
-                onTap: () => _removeImage(index),
+                onTap: () {
+                  final isExisting = file.path.startsWith('http');
+                  final actualIndex = isExisting
+                      ? _existingImages.indexOf(file.path)
+                      : _newImages.indexWhere((e) => e.path == file.path);
+
+                  _removeImage(actualIndex, isExisting);
+                },
                 child: Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
@@ -372,7 +400,7 @@ class _ItemFormPageState extends State<ItemFormPage> {
             borderRadius: BorderRadius.circular(20),
           ),
           child: Text(
-            '${_pickedImages.length} / $_maxImages',
+            '${_allImagesPreview.length} / $_maxImages',
             style: const TextStyle(
               color: Colors.white,
               fontSize: 12,
@@ -461,7 +489,7 @@ class _ItemFormPageState extends State<ItemFormPage> {
                           child: Stack(
                             fit: StackFit.expand,
                             children: [
-                              _pickedImages.isEmpty
+                              _allImagesPreview.isEmpty
                                   ? Column(
                                       mainAxisAlignment:
                                           MainAxisAlignment.center,
@@ -491,30 +519,37 @@ class _ItemFormPageState extends State<ItemFormPage> {
                                         ),
                                       ],
                                     )
+                                  : _allImagesPreview.first.path.startsWith(
+                                      'http',
+                                    )
+                                  ? Image.network(
+                                      _allImagesPreview.first.path,
+                                      fit: BoxFit.cover,
+                                    )
                                   : Image.file(
-                                      File(_pickedImages.first.path),
+                                      File(_allImagesPreview.first.path),
                                       fit: BoxFit.cover,
                                     ),
 
-                              if (_pickedImages.isEmpty)
+                              if (_allImagesPreview.isEmpty)
                                 const Padding(padding: EdgeInsets.only(top: 6)),
 
-                              if (_pickedImages.isNotEmpty)
+                              if (_allImagesPreview.isNotEmpty)
                                 _buildImageCounter(),
                             ],
                           ),
                         ),
                       ),
 
-                      if (_pickedImages.isNotEmpty) ...[
+                      if (_allImagesPreview.isNotEmpty) ...[
                         const SizedBox(height: 12),
                         SizedBox(
                           height: 90,
                           child: ListView.builder(
                             scrollDirection: Axis.horizontal,
-                            itemCount: _pickedImages.length,
+                            itemCount: _allImagesPreview.length,
                             itemBuilder: (_, i) =>
-                                _buildThumbnail(_pickedImages[i], i),
+                                _buildThumbnail(_allImagesPreview[i], i),
                           ),
                         ),
                       ],

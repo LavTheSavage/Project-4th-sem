@@ -100,7 +100,7 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
         _normalizeImages(item['images']);
       });
 
-      widget.onUpdate(widget.index, res); // ONLY changed fields
+      widget.onUpdate(widget.index, item);
     }
   }
 
