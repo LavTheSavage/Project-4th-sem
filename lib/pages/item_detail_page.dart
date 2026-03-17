@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'item_form_page.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -141,7 +143,13 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
         builder: (_) => Scaffold(
           appBar: AppBar(backgroundColor: Colors.black),
           backgroundColor: Colors.black,
-          body: Center(child: InteractiveViewer(child: Image.network(url))),
+          body: Center(
+            child: InteractiveViewer(
+              child: url.startsWith('http')
+                  ? Image.network(url)
+                  : Image.file(File(url)),
+            ),
+          ),
         ),
       ),
     );
@@ -285,19 +293,27 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
                                 'item_image_${widget.index}_${item['name']}_$i',
                             child: InkWell(
                               onTap: () => _openImagePreview(imgPath),
-                              child: Image.network(
-                                imgPath,
-                                fit: BoxFit.cover,
-                                width: double.infinity,
-                                loadingBuilder: (c, w, p) {
-                                  if (p == null) return w;
-                                  return const Center(
-                                    child: CircularProgressIndicator(),
-                                  );
-                                },
-                                errorBuilder: (_, __, ___) =>
-                                    const Icon(Icons.broken_image, size: 48),
-                              ),
+                              child: imgPath.startsWith('http')
+                                  ? Image.network(
+                                      imgPath,
+                                      fit: BoxFit.cover,
+                                      width: double.infinity,
+                                      loadingBuilder: (c, w, p) {
+                                        if (p == null) return w;
+                                        return const Center(
+                                          child: CircularProgressIndicator(),
+                                        );
+                                      },
+                                      errorBuilder: (_, __, ___) => const Icon(
+                                        Icons.broken_image,
+                                        size: 48,
+                                      ),
+                                    )
+                                  : Image.file(
+                                      File(imgPath),
+                                      fit: BoxFit.cover,
+                                      width: double.infinity,
+                                    ),
                             ),
                           );
                         },
@@ -379,7 +395,9 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
                           ),
                           borderRadius: BorderRadius.circular(8),
                           image: DecorationImage(
-                            image: NetworkImage(p),
+                            image: p.startsWith('http')
+                                ? NetworkImage(p)
+                                : FileImage(File(p)) as ImageProvider,
                             fit: BoxFit.cover,
                           ),
                         ),

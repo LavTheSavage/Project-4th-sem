@@ -39,7 +39,7 @@ class AppRoutes {
 
       return MaterialPageRoute(
         builder: (_) => ItemFormPage(
-          categories: args['categories'],
+          categories: categories,
           existingItem: args['existingItem'],
         ),
       );

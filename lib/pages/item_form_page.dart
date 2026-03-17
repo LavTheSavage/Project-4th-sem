@@ -55,6 +55,8 @@ class _ItemFormPageState extends State<ItemFormPage> {
     _descriptionController = TextEditingController(
       text: widget.existingItem?['description'] ?? '',
     );
+
+    _locationController = TextEditingController();
     final profile = await supabase
         .from('profiles')
         .select('default_address')
@@ -154,13 +156,25 @@ class _ItemFormPageState extends State<ItemFormPage> {
         _pickedImages.map((img) => storage.uploadImage(img)),
       );
 
+      List<String> existingUrls = [];
+      List<XFile> newImages = [];
+
+      for (var img in _pickedImages) {
+        if (img.path.startsWith('http')) {
+          existingUrls.add(img.path); // already uploaded
+        } else {
+          newImages.add(img); // new image
+        }
+      }
+
+      final allImages = [...existingUrls, ...uploadedUrls];
       final payload = {
         'name': _nameController.text.trim(),
         'price': double.parse(_priceController.text.trim()),
         'category': _selectedCategory,
         'condition': _selectedCondition,
         'description': _descriptionController.text.trim(),
-        'images': uploadedUrls,
+        'images': allImages,
         'location': _locationController.text.trim(),
       };
 
@@ -171,7 +185,7 @@ class _ItemFormPageState extends State<ItemFormPage> {
         await ItemService().addItem(payload);
       }
 
-      if (mounted) Navigator.of(context).pop(true);
+      if (mounted) Navigator.of(context).pop(payload);
     } catch (e) {
       debugPrint('Error saving item: $e');
       if (!mounted) return;
@@ -236,7 +250,7 @@ class _ItemFormPageState extends State<ItemFormPage> {
                 child: Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: const Color.fromARGB(255, 155, 150, 150),
                     borderRadius: BorderRadius.circular(14),
                     boxShadow: [
                       BoxShadow(
