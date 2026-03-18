@@ -562,7 +562,7 @@ class _LoginPageState extends State<LoginPage> {
   Widget _buildTwoPanel(BuildContext context) {
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 24, horizontal: 24),
-      constraints: const BoxConstraints(maxWidth: 1100),
+      constraints: const BoxConstraints(maxWidth: 900),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
@@ -581,7 +581,7 @@ class _LoginPageState extends State<LoginPage> {
             ),
           ),
           // divider between panels
-          Container(width: 2, height: 500, color: kBackground),
+          Container(width: 2, color: kBackground),
           // RIGHT - REGISTER (light bg)
           Expanded(
             child: Container(
@@ -658,14 +658,19 @@ class _LoginPageState extends State<LoginPage> {
       child: Scaffold(
         backgroundColor: kBackground,
         body: SafeArea(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              if (constraints.maxWidth >= 900) {
-                return Center(child: _buildTwoPanel(context));
-              } else {
-                return _buildSinglePanel(context);
-              }
-            },
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1100),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  if (constraints.maxWidth >= 900) {
+                    return Center(child: _buildTwoPanel(context));
+                  } else {
+                    return _buildSinglePanel(context);
+                  }
+                },
+              ),
+            ),
           ),
         ),
       ),
