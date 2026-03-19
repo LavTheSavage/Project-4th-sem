@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:project/main.dart';
@@ -119,38 +120,44 @@ class _ItemFormPageState extends State<ItemFormPage> {
       return;
     }
 
-    setState(() => _isLoading = true);
     try {
       final picker = ImagePicker();
       final List<XFile> images = await picker.pickMultiImage(imageQuality: 82);
-      if (!mounted) return;
-      if (images.isNotEmpty) {
-        final allowed = images.take(
-          _maxImages - (_existingImages.length + _newImages.length),
-        );
 
-        setState(() {
-          _newImages.addAll(allowed);
-        });
-      }
-    } catch (_) {
+      if (!mounted) return;
+      if (images.isEmpty) return;
+
+      final allowed = images.take(
+        _maxImages - (_existingImages.length + _newImages.length),
+      );
+
+      setState(() {
+        _newImages.addAll(allowed);
+      });
+    } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Failed to pick images')));
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  void _removeImage(int index, bool isExisting) {
-    setState(() {
-      if (isExisting) {
+  void _removeImage(int index, bool isExisting) async {
+    final storage = StorageService();
+
+    if (isExisting) {
+      final url = _existingImages[index];
+
+      await storage.deleteImage(url);
+
+      setState(() {
         _existingImages.removeAt(index);
-      } else {
+      });
+    } else {
+      setState(() {
         _newImages.removeAt(index);
-      }
-    });
+      });
+    }
   }
 
   void _previewImage(XFile img, int index) {
@@ -161,7 +168,11 @@ class _ItemFormPageState extends State<ItemFormPage> {
           backgroundColor: Colors.black,
           appBar: AppBar(backgroundColor: Colors.black, elevation: 0),
           body: Center(
-            child: InteractiveViewer(child: Image.file(File(img.path))),
+            child: InteractiveViewer(
+              child: kIsWeb
+                  ? Image.network(img.path)
+                  : Image.file(File(img.path)),
+            ),
           ),
         ),
       ),
@@ -192,14 +203,22 @@ class _ItemFormPageState extends State<ItemFormPage> {
         'location': _locationController.text.trim(),
       };
 
+      late final Map<String, dynamic> savedItem;
       if (isEditMode) {
         final id = widget.existingItem!['id'];
-        await supabase.from('items').update(payload).eq('id', id);
+        final updated = await supabase
+            .from('items')
+            .update(payload)
+            .eq('id', id)
+            .select(ItemService.itemSelect)
+            .single();
+        savedItem = {...Map<String, dynamic>.from(updated), '_persisted': true};
       } else {
-        await ItemService().addItem(payload);
+        final inserted = await ItemService().addItem(payload);
+        savedItem = {...inserted, '_persisted': true};
       }
 
-      if (mounted) Navigator.of(context).pop(payload);
+      if (mounted) Navigator.of(context).pop(savedItem);
     } catch (e) {
       debugPrint('Error saving item: $e');
       if (!mounted) return;
@@ -256,6 +275,8 @@ class _ItemFormPageState extends State<ItemFormPage> {
                       height: 90,
                       fit: BoxFit.cover,
                     )
+                  : kIsWeb
+                  ? Image.network(file.path)
                   : Image.file(
                       File(file.path),
                       width: 90,
@@ -522,6 +543,11 @@ class _ItemFormPageState extends State<ItemFormPage> {
                                   : _allImagesPreview.first.path.startsWith(
                                       'http',
                                     )
+                                  ? Image.network(
+                                      _allImagesPreview.first.path,
+                                      fit: BoxFit.cover,
+                                    )
+                                  : kIsWeb
                                   ? Image.network(
                                       _allImagesPreview.first.path,
                                       fit: BoxFit.cover,

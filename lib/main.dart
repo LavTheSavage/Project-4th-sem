@@ -72,12 +72,7 @@ class MyAppStateNotifier {
 
 class ItemService {
   final SupabaseClient _client = Supabase.instance.client;
-
-  Future<List<Map<String, dynamic>>> fetchItems() async {
-    try {
-      final res = await _client
-          .from('items')
-          .select('''
+  static const String itemSelect = '''
           *,
           owner:profiles (
             id,
@@ -90,7 +85,13 @@ class ItemService {
           from_date,
           to_date
           )
-        ''')
+        ''';
+
+  Future<List<Map<String, dynamic>>> fetchItems() async {
+    try {
+      final res = await _client
+          .from('items')
+          .select(itemSelect)
           .order('created_at', ascending: false);
 
       return List<Map<String, dynamic>>.from(res);
@@ -102,7 +103,7 @@ class ItemService {
     }
   }
 
-  Future<void> addItem(Map<String, dynamic> item) async {
+  Future<Map<String, dynamic>> addItem(Map<String, dynamic> item) async {
     final user = _client.auth.currentUser!;
     final userProfile = await _client
         .from('profiles')
@@ -112,15 +113,21 @@ class ItemService {
 
     final rawImages = item['images'];
 
-    await _client.from('items').insert({
-      ...item,
-      'images': rawImages is List
-          ? rawImages
-          : rawImages is String
-          ? [rawImages]
-          : [],
-      'owner_id': user.id,
-      'owner_name': userProfile['full_name'],
-    });
+    final inserted = await _client
+        .from('items')
+        .insert({
+          ...item,
+          'images': rawImages is List
+              ? rawImages
+              : rawImages is String
+              ? [rawImages]
+              : [],
+          'owner_id': user.id,
+          'owner_name': userProfile['full_name'],
+        })
+        .select(itemSelect)
+        .single();
+
+    return Map<String, dynamic>.from(inserted);
   }
 }

@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:project/services/storage_service.dart';
 import 'item_form_page.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'booking_page.dart';
@@ -124,7 +125,29 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
     );
 
     if (confirmed == true) {
+      final storage = StorageService();
+
+      final rawImages = item['images'];
+
+      List<String> imageUrls = [];
+
+      if (rawImages is List) {
+        imageUrls = rawImages.whereType<String>().toList();
+      } else if (rawImages is String) {
+        try {
+          final decoded = jsonDecode(rawImages);
+          if (decoded is List) {
+            imageUrls = decoded.whereType<String>().toList();
+          }
+        } catch (_) {}
+      }
+
+      for (final url in imageUrls) {
+        await storage.deleteImage(url);
+      }
+
       widget.onDelete(widget.index);
+
       if (!mounted) return;
       Navigator.pop(context, true);
     }

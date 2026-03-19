@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:project/main.dart';
 import 'package:project/pages/login_page.dart';
@@ -30,12 +28,16 @@ class _MyAppState extends State<MyApp> {
   String? _avatarUrl;
   bool _isAdmin = false;
   RealtimeChannel? _itemsChannel;
-  Timer? _reloadTimer;
+  bool _isReloadingItems = false;
+  bool _reloadQueued = false;
   String? get currentUserId => Supabase.instance.client.auth.currentUser?.id;
   int _unreadNotifications = 0;
   String? _currentUserId;
   int _selectedIndex = 0;
   final List<Map<String, dynamic>> _notifications = [];
+  List<Map<String, dynamic>> _items = [];
+  bool _loading = true;
+
   void _openAddItemPage() async {
     final result = await Navigator.pushNamed(
       context,
@@ -44,10 +46,11 @@ class _MyAppState extends State<MyApp> {
     );
 
     if (result != null && result is Map<String, dynamic>) {
-      await ItemService().addItem(result);
+      final newItem = Map<String, dynamic>.from(result)..remove('_persisted');
       setState(() {
+        _items = [newItem, ..._items];
         _notifications.add({
-          'title': "${result['name']} listed",
+          'title': "${newItem['name']} listed",
           'owner': _currentUserId ?? '',
           'timestamp': DateTime.now(),
         });
@@ -55,20 +58,33 @@ class _MyAppState extends State<MyApp> {
     }
   }
 
-  void _listenToItemChanges() {
-    final client = Supabase.instance.client;
+  Future<void> _scheduleItemsReload() async {
+    if (_isReloadingItems) {
+      _reloadQueued = true;
+      return;
+    }
 
+    _isReloadingItems = true;
+    await _loadItems();
+    _isReloadingItems = false;
+
+    if (_reloadQueued) {
+      _reloadQueued = false;
+      await _scheduleItemsReload();
+    }
+  }
+
+  void _listenToItemChanges() {
+    _itemsChannel?.unsubscribe();
+
+    final client = Supabase.instance.client;
     _itemsChannel = client
         .channel('public:items')
         .onPostgresChanges(
           event: PostgresChangeEvent.all,
           schema: 'public',
           table: 'items',
-          callback: (payload) async {
-            debugPrint('🔄 Items table changed');
-            _reloadTimer?.cancel();
-            _reloadTimer = Timer(const Duration(milliseconds: 400), _loadItems);
-          },
+          callback: (payload) async => _scheduleItemsReload(),
         )
         .subscribe();
   }
@@ -124,12 +140,8 @@ class _MyAppState extends State<MyApp> {
   void dispose() {
     _itemsChannel?.unsubscribe();
     _itemsChannel = null;
-    _reloadTimer?.cancel();
     super.dispose();
   }
-
-  List<Map<String, dynamic>> _items = [];
-  bool _loading = true;
 
   Future<void> _fetchUnreadCount() async {
     final uid = currentUserId;
@@ -147,15 +159,15 @@ class _MyAppState extends State<MyApp> {
   Future<void> _loadItems() async {
     try {
       final data = await ItemService().fetchItems();
+      if (!mounted) return;
       setState(() {
         _items = data;
       });
     } catch (e, st) {
-      debugPrint('❌ Failed to load items');
+      debugPrint('Failed to load items');
       debugPrint(e.toString());
       debugPrint(st.toString());
     } finally {
-      // ✅ ALWAYS stop loading
       if (mounted) {
         setState(() {
           _loading = false;
@@ -177,6 +189,7 @@ class _MyAppState extends State<MyApp> {
 
   Future<void> _updateItem(int index, Map<String, dynamic> updated) async {
     final id = _items[index]['id'];
+    final alreadyPersisted = updated['_persisted'] == true;
 
     final Map<String, dynamic> payload = {};
 
@@ -201,16 +214,25 @@ class _MyAppState extends State<MyApp> {
       if (raw is List && raw.isNotEmpty) {
         payload['images'] = raw;
       } else if (raw is String && raw.isNotEmpty) {
-        payload['images'] = [raw]; // normalize
+        payload['images'] = [raw];
+      } else if (raw is List && raw.isEmpty) {
+        payload['images'] = raw;
       }
     }
 
     if (payload.isEmpty) return;
 
-    await supabase.from('items').update(payload).eq('id', id);
+    if (!alreadyPersisted) {
+      await supabase.from('items').update(payload).eq('id', id);
+    }
 
     setState(() {
-      _items[index] = {..._items[index], ...payload};
+      if (alreadyPersisted) {
+        final localItem = Map<String, dynamic>.from(updated)..remove('_persisted');
+        _items[index] = {..._items[index], ...localItem};
+      } else {
+        _items[index] = {..._items[index], ...payload};
+      }
     });
   }
 
@@ -246,13 +268,10 @@ class _MyAppState extends State<MyApp> {
           ),
           TextButton(
             onPressed: () async {
-              // Sign out from Supabase
               await Supabase.instance.client.auth.signOut();
 
-              // Close the dialog first
               if (context.mounted) Navigator.pop(context);
 
-              // Navigate to login page and remove all previous routes
               if (context.mounted) {
                 Navigator.pushAndRemoveUntil(
                   context,
@@ -300,7 +319,6 @@ class _MyAppState extends State<MyApp> {
         onDelete: (index) => _deleteItem(index),
         onUpdate: (index, data) => _updateItem(index, data),
       ),
-
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         selectedItemColor: const Color(0xFF1E88E5),
@@ -353,11 +371,9 @@ class _MyAppState extends State<MyApp> {
           ),
         ],
       ),
-
       body: IndexedStack(
         index: _selectedIndex,
         children: [
-          /// SEARCH PAGE (kept alive)
           _loading
               ? const Center(child: CircularProgressIndicator())
               : SearchPage(
@@ -367,12 +383,9 @@ class _MyAppState extends State<MyApp> {
                   onDelete: _deleteItem,
                   currentUser: currentUserId,
                 ),
-
-          /// NOTIFICATIONS PAGE (kept alive)
           const NotificationsPage(),
         ],
       ),
-
       floatingActionButton: FloatingActionButton(
         onPressed: _openAddItemPage,
         backgroundColor: const Color(0xFFFFC107),
