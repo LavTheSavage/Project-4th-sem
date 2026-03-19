@@ -443,11 +443,17 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           ),
           body: loading
               ? const Center(child: CircularProgressIndicator())
-              : Column(
-                  children: [
-                    if (_selectedTab >= 1 && _selectedTab <= 4) _searchBox(),
-                    Expanded(child: _selectedView()),
-                  ],
+              : Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 1100),
+                    child: Column(
+                      children: [
+                        if (_selectedTab >= 1 && _selectedTab <= 4)
+                          _searchBox(),
+                        Expanded(child: _selectedView()),
+                      ],
+                    ),
+                  ),
                 ),
         );
       },
@@ -642,7 +648,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       onRefresh: _load,
       child: GridView.count(
         padding: const EdgeInsets.all(16),
-        crossAxisCount: 2,
+        crossAxisCount: MediaQuery.of(context).size.width > 900 ? 4 : 2,
         children: [
           _stat('Users', users.length, () => setState(() => _selectedTab = 1)),
           _stat('Items', items.length, () => setState(() => _selectedTab = 2)),

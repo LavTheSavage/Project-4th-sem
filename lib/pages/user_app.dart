@@ -27,6 +27,7 @@ class _MyAppState extends State<MyApp> {
   String? _userName;
   String? _avatarUrl;
   bool _isAdmin = false;
+  bool _isBanned = false;
   RealtimeChannel? _itemsChannel;
   bool _isReloadingItems = false;
   bool _reloadQueued = false;
@@ -110,6 +111,7 @@ class _MyAppState extends State<MyApp> {
         _avatarUrl = data['avatar_url'];
         final role = (data['role'] ?? '').toString().toLowerCase();
         _isAdmin = role == 'admin';
+        _isBanned = data['is_banned'] == true;
       });
     } catch (e) {
       setState(() {
@@ -228,7 +230,8 @@ class _MyAppState extends State<MyApp> {
 
     setState(() {
       if (alreadyPersisted) {
-        final localItem = Map<String, dynamic>.from(updated)..remove('_persisted');
+        final localItem = Map<String, dynamic>.from(updated)
+          ..remove('_persisted');
         _items[index] = {..._items[index], ...localItem};
       } else {
         _items[index] = {..._items[index], ...payload};
@@ -371,26 +374,36 @@ class _MyAppState extends State<MyApp> {
           ),
         ],
       ),
-      body: IndexedStack(
-        index: _selectedIndex,
-        children: [
-          _loading
-              ? const Center(child: CircularProgressIndicator())
-              : SearchPage(
-                  items: _items,
-                  categories: appCategories,
-                  onUpdate: _updateItem,
-                  onDelete: _deleteItem,
-                  currentUser: currentUserId,
-                ),
-          const NotificationsPage(),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _openAddItemPage,
-        backgroundColor: const Color(0xFFFFC107),
-        child: const Icon(Icons.add, color: Colors.black),
-      ),
+      body: _isBanned
+          ? Center(
+              child: Text(
+                "🚫 Your account has been banned.\nContact admin.",
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 18, color: Colors.red),
+              ),
+            )
+          : IndexedStack(
+              index: _selectedIndex,
+              children: [
+                _loading
+                    ? const Center(child: CircularProgressIndicator())
+                    : SearchPage(
+                        items: _items,
+                        categories: appCategories,
+                        onUpdate: _updateItem,
+                        onDelete: _deleteItem,
+                        currentUser: currentUserId,
+                      ),
+                const NotificationsPage(),
+              ],
+            ),
+      floatingActionButton: _isBanned
+          ? null
+          : FloatingActionButton(
+              onPressed: _openAddItemPage,
+              backgroundColor: const Color(0xFFFFC107),
+              child: const Icon(Icons.add, color: Colors.black),
+            ),
     );
   }
 }

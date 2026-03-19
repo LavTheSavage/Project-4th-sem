@@ -20,6 +20,13 @@ class _NotificationsPageState extends State<NotificationsPage> {
 
   @override
   void initState() {
+    supabase
+        .from('notifications')
+        .stream(primaryKey: ['id'])
+        .eq('user_id', supabase.auth.currentUser!.id)
+        .listen((data) {
+          fetchNotifications();
+        });
     super.initState();
     fetchNotifications();
     MyAppStateNotifier.refresh?.call();
@@ -484,6 +491,75 @@ class _NotificationsPageState extends State<NotificationsPage> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
+    Widget _systemNotificationCard(Map<String, dynamic> n) {
+      final type = n['type'];
+      IconData icon;
+      Color color;
+
+      switch (type) {
+        case 'user_warning':
+          icon = Icons.warning;
+          color = Colors.orange;
+          break;
+        case 'user_banned':
+          icon = Icons.block;
+          color = Colors.red;
+          break;
+        case 'item_flagged':
+          icon = Icons.flag;
+          color = Colors.deepOrange;
+          break;
+        case 'item_deleted':
+          icon = Icons.delete;
+          color = Colors.redAccent;
+          break;
+        default:
+          icon = Icons.notifications;
+          color = Colors.blue;
+      }
+
+      return Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color.withOpacity(0.2)),
+        ),
+        child: Row(
+          children: [
+            CircleAvatar(
+              backgroundColor: color.withOpacity(0.1),
+              child: Icon(icon, color: color),
+            ),
+            const SizedBox(width: 12),
+
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    n['title'] ?? '',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    n['body'] ?? '',
+                    style: const TextStyle(color: Colors.black87),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    formatDateTime(n['created_at']),
+                    style: const TextStyle(fontSize: 11, color: Colors.grey),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: _pageBg,
       body: RefreshIndicator(
@@ -501,6 +577,12 @@ class _NotificationsPageState extends State<NotificationsPage> {
                 itemBuilder: (context, index) {
                   final n = notifications[index];
                   final booking = n['booking'];
+                  final type = n['type']?.toString();
+                  final isSystem =
+                      type == 'user_warning' ||
+                      type == 'user_banned' ||
+                      type == 'item_flagged' ||
+                      type == 'item_deleted';
                   final item = booking?['item'];
                   final renter = booking?['renter'];
                   final bool isHandled = n['handled'] == true;
@@ -515,6 +597,10 @@ class _NotificationsPageState extends State<NotificationsPage> {
                       booking?['status'] == 'approved' &&
                       booking?['received_by_renter'] == false &&
                       renter?['id'] == supabase.auth.currentUser!.id;
+                  if (isSystem) {
+                    return _systemNotificationCard(n);
+                  }
+
                   return _notificationCard(
                     context: context,
                     n: n,

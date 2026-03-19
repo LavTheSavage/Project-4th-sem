@@ -130,4 +130,15 @@ class ItemService {
 
     return Map<String, dynamic>.from(inserted);
   }
+
+  Future<Map<String, dynamic>?> getCurrentUserProfile() async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return null;
+
+    return await Supabase.instance.client
+        .from('profiles')
+        .select()
+        .eq('id', user.id)
+        .maybeSingle();
+  }
 }
