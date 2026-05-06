@@ -198,25 +198,24 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  // // ---------------- Social button ----------------
-  // Widget _socialButton(String asset, String text) {
-  //   return SizedBox(
-  //     height: 48,
-  //     width: double.infinity,
-  //     child: OutlinedButton.icon(
-  //       onPressed: () {},
-  //       icon: Image.asset(asset, height: 20),
-  //       label: Text(text, style: const TextStyle(fontSize: 14)),
-  //       style: OutlinedButton.styleFrom(
-  //         side: BorderSide(color: kSecondary.withOpacity(.3)),
-  //         shape: RoundedRectangleBorder(
-  //           borderRadius: BorderRadius.circular(12),
-  //         ),
-  //         backgroundColor: Colors.white,
-  //       ),
-  //     ),
-  //   );
-  // }
+  Widget _socialButton(String asset, String text) {
+    return SizedBox(
+      height: 48,
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        onPressed: () {},
+        icon: Image.asset(asset, height: 20),
+        label: Text(text, style: const TextStyle(fontSize: 14)),
+        style: OutlinedButton.styleFrom(
+          side: BorderSide(color: kSecondary.withOpacity(.3)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          backgroundColor: Colors.white,
+        ),
+      ),
+    );
+  }
 
   // ---------------- Login form widget ----------------
   Widget _buildLoginForm() {
@@ -312,25 +311,25 @@ class _LoginPageState extends State<LoginPage> {
           ),
 
           const SizedBox(height: 18),
-          // Row(
-          //   children: [
-          //     const Expanded(child: Divider(color: Colors.black12)),
-          //     Padding(
-          //       padding: const EdgeInsets.symmetric(horizontal: 12),
-          //       child: Text(
-          //         "OR",
-          //         style: TextStyle(color: kTextDark.withOpacity(.6)),
-          //       ),
-          //     ),
-          //     const Expanded(child: Divider(color: Colors.black12)),
-          //   ],
-          // ),
+          Row(
+            children: [
+              const Expanded(child: Divider(color: Colors.black12)),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Text(
+                  "OR",
+                  style: TextStyle(color: kTextDark.withOpacity(.6)),
+                ),
+              ),
+              const Expanded(child: Divider(color: Colors.black12)),
+            ],
+          ),
 
-          // const SizedBox(height: 18),
-          // _socialButton("assets/icons/google.png", "Login with Google"),
-          // const SizedBox(height: 12),
-          // _socialButton("assets/icons/facebook.png", "Login with Facebook"),
-          // const SizedBox(height: 18),
+          const SizedBox(height: 18),
+          _socialButton("assets/icons/google.png", "Login with Google"),
+          const SizedBox(height: 12),
+          _socialButton("assets/icons/facebook.png", "Login with Facebook"),
+          const SizedBox(height: 18),
 
           // Mobile-only link to go to sign up
           LayoutBuilder(
@@ -523,11 +522,11 @@ class _LoginPageState extends State<LoginPage> {
             ],
           ),
 
-          // const SizedBox(height: 18),
-          // _socialButton("assets/icons/google.png", "Sign Up with Google"),
-          // const SizedBox(height: 12),
-          // _socialButton("assets/icons/facebook.png", "Sign Up with Facebook"),
-          // const SizedBox(height: 18),
+          const SizedBox(height: 18),
+          _socialButton("assets/icons/google.png", "Sign Up with Google"),
+          const SizedBox(height: 12),
+          _socialButton("assets/icons/facebook.png", "Sign Up with Facebook"),
+          const SizedBox(height: 18),
 
           // Mobile-only link to go to login
           LayoutBuilder(
