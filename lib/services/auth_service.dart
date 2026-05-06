@@ -9,8 +9,6 @@ class AuthService {
       );
 
       if (result.status == LoginStatus.success) {
-        final AccessToken accessToken = result.accessToken!;
-
         // Get user data
         final userData = await FacebookAuth.instance.getUserData(
           fields: "name,email,picture.width(200)",
