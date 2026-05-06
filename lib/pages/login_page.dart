@@ -83,13 +83,10 @@ class _LoginPageState extends State<LoginPage> {
   bool _obscureRegPassword = true;
   bool _obscureRegConfirm = true;
 
-  // On small screen: toggles which form to show (Option B)
   bool _showRegisterOnMobile = false;
 
-  // ---------------- LOGIN HANDLER ----------------
   Future<void> _handleLogin() async {
     if (!_loginFormKey.currentState!.validate()) return;
-
     setState(() => _isLoading = true);
 
     try {
@@ -101,16 +98,26 @@ class _LoginPageState extends State<LoginPage> {
       if (response.user != null && mounted) {
         final user = response.user!;
 
-        // ✅ Fetch the user's profile from profiles table
-        final profileRes = await widget.client
-            .from('profiles')
-            .select()
-            .eq('id', user.id)
-            .single();
-
-        if (profileRes['is_verified'] != true) {
+        Map<String, dynamic>? profileRes;
+        try {
+          profileRes = await widget.client
+              .from('profiles')
+              .select()
+              .eq('id', user.id)
+              .single();
+        } catch (_) {
           if (!mounted) return;
 
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Failed to fetch user profile"),
+              backgroundColor: kAccent,
+            ),
+          );
+          return;
+        }
+        if (profileRes['is_verified'] != true) {
+          if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text("Please verify your email first"),
@@ -125,16 +132,14 @@ class _LoginPageState extends State<LoginPage> {
       }
     } on AuthException catch (e) {
       if (!mounted) return;
-
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(e.message), backgroundColor: kAccent),
       );
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  // ---------------- REGISTER HANDLER ----------------
   Future<void> _handleRegister() async {
     if (!_registerFormKey.currentState!.validate()) return;
 
@@ -401,8 +406,13 @@ class _LoginPageState extends State<LoginPage> {
 
           TextFormField(
             controller: _fullNameController,
-            validator: (v) =>
-                (v == null || v.isEmpty) ? "Enter your name" : null,
+            validator: (v) {
+              if (v == null || v.isEmpty) return "Enter your name";
+              if (!RegExp(r"^[a-zA-Z\s]+$").hasMatch(v)) {
+                return "Name must contain letters only";
+              }
+              return null;
+            },
             decoration: _inputStyle(
               hint: "Full Name",
               icon: Icons.person_outline,
@@ -412,7 +422,13 @@ class _LoginPageState extends State<LoginPage> {
 
           TextFormField(
             controller: _regEmailController,
-            validator: (v) => (v == null || v.isEmpty) ? "Enter email" : null,
+            validator: (v) {
+              if (v == null || v.isEmpty) return "Enter email";
+              if (!RegExp(r'^[\w.+\-]+@gmail\.com$').hasMatch(v)) {
+                return "Only Gmail addresses are allowed";
+              }
+              return null;
+            },
             decoration: _inputStyle(
               hint: "Your Email",
               icon: Icons.email_outlined,
@@ -445,8 +461,13 @@ class _LoginPageState extends State<LoginPage> {
           TextFormField(
             controller: _confirmPasswordController,
             obscureText: _obscureRegConfirm,
-            validator: (v) =>
-                (v == null || v.isEmpty) ? "Confirm password" : null,
+            validator: (v) {
+              if (v == null || v.isEmpty) return "Confirm password";
+              if (v != _regPasswordController.text) {
+                return "Passwords do not match";
+              }
+              return null;
+            },
             decoration:
                 _inputStyle(
                   hint: "Password Again",
