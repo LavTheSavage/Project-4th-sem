@@ -49,6 +49,15 @@ class _ItemFormPageState extends State<ItemFormPage> {
     _initializeForm();
   }
 
+  Widget _buildErrorWidget() {
+    return Container(
+      color: Colors.grey.shade200,
+      child: const Center(
+        child: Icon(Icons.broken_image, color: Colors.grey, size: 40),
+      ),
+    );
+  }
+
   Future<void> _initializeForm() async {
     _nameController = TextEditingController(
       text: widget.existingItem?['name'] ?? '',
@@ -540,21 +549,44 @@ class _ItemFormPageState extends State<ItemFormPage> {
                                         ),
                                       ],
                                     )
-                                  : _allImagesPreview.first.path.startsWith(
-                                      'http',
-                                    )
-                                  ? Image.network(
-                                      _allImagesPreview.first.path,
-                                      fit: BoxFit.cover,
-                                    )
-                                  : kIsWeb
-                                  ? Image.network(
-                                      _allImagesPreview.first.path,
-                                      fit: BoxFit.cover,
-                                    )
-                                  : Image.file(
-                                      File(_allImagesPreview.first.path),
-                                      fit: BoxFit.cover,
+                                  : ClipRRect(
+                                      borderRadius: BorderRadius.circular(16),
+                                      child:
+                                          _allImagesPreview.first.path
+                                              .startsWith('http')
+                                          ? Image.network(
+                                              _allImagesPreview.first.path,
+                                              fit: BoxFit.cover,
+                                              width: double.infinity,
+                                              height: 190,
+                                              errorBuilder:
+                                                  (
+                                                    context,
+                                                    error,
+                                                    stackTrace,
+                                                  ) => _buildErrorWidget(),
+                                            )
+                                          : kIsWeb
+                                          ? Image.network(
+                                              _allImagesPreview.first.path,
+                                              fit: BoxFit.cover,
+                                              width: double.infinity,
+                                              height: 190,
+                                              errorBuilder:
+                                                  (
+                                                    context,
+                                                    error,
+                                                    stackTrace,
+                                                  ) => _buildErrorWidget(),
+                                            )
+                                          : Image.file(
+                                              File(
+                                                _allImagesPreview.first.path,
+                                              ),
+                                              fit: BoxFit.cover,
+                                              width: double.infinity,
+                                              height: 190,
+                                            ),
                                     ),
 
                               if (_allImagesPreview.isEmpty)

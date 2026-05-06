@@ -37,12 +37,11 @@ class StorageService {
 
   Future<void> deleteImage(String imageUrl) async {
     try {
-      final uri = Uri.parse(imageUrl);
-      final pathSegments = uri.pathSegments;
-
-      final fileName = pathSegments.last;
-
-      await supabase.storage.from('items').remove([fileName]);
+      final marker = '/object/public/items/';
+      final idx = imageUrl.indexOf(marker);
+      if (idx == -1) return;
+      final filePath = imageUrl.substring(idx + marker.length);
+      await supabase.storage.from('items').remove([filePath]);
     } catch (e) {
       debugPrint("Error deleting image: $e");
     }
