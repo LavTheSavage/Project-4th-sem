@@ -10,11 +10,14 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  crypto: ^3.0.6
   cached_network_image: ^3.4.1
   sqflite: ^2.4.2
   path: ^1.9.0
   google_sign_in: ^6.2.1
   flutter_facebook_auth: ^7.0.1
+  esewa_flutter: ^2.0.0
+
 
 
   supabase_flutter: ^2.10.3
