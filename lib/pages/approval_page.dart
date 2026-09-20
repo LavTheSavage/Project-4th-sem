@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'my_rentals_page.dart';
+import 'payment_page.dart';
 
 class ApprovalPage extends StatefulWidget {
   final String bookingId;
@@ -87,10 +88,11 @@ class _ApprovalPageState extends State<ApprovalPage> {
       final renterId = booking!['renter_id'];
       final itemName = booking!['item']['name'];
 
-      await supabase
-          .from('bookings')
-          .update({'status': 'approved', 'owner_approved': true})
-          .eq('id', widget.bookingId);
+      await supabase.from('bookings').update({
+        'status': 'approved',
+        'owner_approved': true,
+        'payment_status': 'pending',
+      }).eq('id', widget.bookingId);
 
       await supabase
           .from('notifications')
@@ -101,7 +103,7 @@ class _ApprovalPageState extends State<ApprovalPage> {
         'user_id': renterId,
         'booking_id': widget.bookingId,
         'title': 'Booking approved for $itemName',
-        'body': 'Your booking request has been approved.',
+        'body': 'Your booking request has been approved. Payment is now required.',
         'type': 'booking_approved',
         'handled': false,
       });
@@ -151,6 +153,14 @@ class _ApprovalPageState extends State<ApprovalPage> {
 
   /// RENTER → ITEM RECEIVED
   Future<void> _markReceived() async {
+    if (booking?['payment_status'] != 'paid') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Complete payment before confirming receipt.'),
+        ),
+      );
+      return;
+    }
     setState(() => loading = true);
 
     try {
@@ -220,6 +230,7 @@ class _ApprovalPageState extends State<ApprovalPage> {
     final isOwner = booking!['owner_id'] == currentUserId;
     final isRenter = booking!['renter_id'] == currentUserId;
     final status = booking!['status'];
+    final paymentStatus = booking!['payment_status'] ?? 'pending';
 
     final images = normalizeImages(booking!['item']['images']);
     final thumb = images.isNotEmpty ? images.first : null;
@@ -366,6 +377,64 @@ class _ApprovalPageState extends State<ApprovalPage> {
                         ],
                       ),
 
+                      if (isRenter && status == 'approved') ...[
+                        const SizedBox(height: 20),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: paymentStatus == 'paid'
+                                ? Colors.green.shade50
+                                : Colors.orange.shade50,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                paymentStatus == 'paid'
+                                    ? 'Payment completed'
+                                    : 'Payment required',
+                                style: const TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                paymentStatus == 'paid'
+                                    ? 'You can now confirm that you received the item.'
+                                    : 'Pay after the seller approves your request.',
+                              ),
+                              if (paymentStatus != 'paid') ...[
+                                const SizedBox(height: 12),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: ElevatedButton.icon(
+                                    icon: const Icon(Icons.payment),
+                                    label: const Text('Choose payment method'),
+                                    onPressed: () async {
+                                      await Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => PaymentPage(
+                                            bookingId: widget.bookingId,
+                                            itemName:
+                                                booking!['item']['name']
+                                                    ?.toString() ??
+                                                'Booking',
+                                            totalPrice:
+                                                booking!['total_price'],
+                                          ),
+                                        ),
+                                      );
+                                      if (mounted) await _load();
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ],
+
                       const SizedBox(height: 32),
 
                       /// ACTIONS
@@ -497,7 +566,9 @@ class _ApprovalPageState extends State<ApprovalPage> {
                         ),
                       ],
 
-                      if (isRenter && status == 'approved') ...[
+                      if (isRenter &&
+                          status == 'approved' &&
+                          paymentStatus == 'paid') ...[
                         const SizedBox(height: 12),
                         SizedBox(
                           width: double.infinity,
@@ -550,6 +621,7 @@ class _ApprovalPageState extends State<ApprovalPage> {
           'approved': Colors.blue,
           'active': Colors.green,
           'completed': Colors.grey,
+          'declined': Colors.red,
         }[status] ??
         Colors.black;
 

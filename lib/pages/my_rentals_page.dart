@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:convert';
+import 'approval_page.dart';
 
 class MyRentalsPage extends StatefulWidget {
   const MyRentalsPage({super.key});
@@ -26,6 +27,7 @@ class _MyRentalsPageState extends State<MyRentalsPage> {
         .select('''
       id,
       status,
+      payment_status,
       from_date,
       to_date,
       item:items (
@@ -144,6 +146,7 @@ class _MyRentalsPageState extends State<MyRentalsPage> {
               final days = to.difference(from).inDays + 1;
               final total = pricePerDay * days;
               final status = b['status'];
+              final paymentStatus = b['payment_status'] ?? 'pending';
 
               final images = normalizeImages(item?['images']);
               final thumb = images.isNotEmpty ? images.first : null;
@@ -237,6 +240,25 @@ class _MyRentalsPageState extends State<MyRentalsPage> {
                             Text(
                               'Period: ${formatRange(b['from_date'], b['to_date'])}',
                             ),
+
+                            if (status == 'approved' && paymentStatus != 'paid') ...[
+                              const SizedBox(height: 8),
+                              SizedBox(
+                                width: double.infinity,
+                                child: OutlinedButton.icon(
+                                  icon: const Icon(Icons.payment),
+                                  label: const Text('Payment required'),
+                                  onPressed: () => Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => ApprovalPage(
+                                        bookingId: b['id'].toString(),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
 
                             const SizedBox(height: 8),
                           ],

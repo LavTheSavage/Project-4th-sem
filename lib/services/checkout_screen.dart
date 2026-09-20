@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/esewa_service.dart'; // Import conditional export dispatcher
 
 class CheckoutScreen extends StatefulWidget {
-  const CheckoutScreen({Key? key}) : super(key: key);
+  const CheckoutScreen({super.key});
 
   @override
   State<CheckoutScreen> createState() => _CheckoutScreenState();

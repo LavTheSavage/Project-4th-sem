@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
 import 'package:esewa_flutter/esewa_flutter.dart';
+import 'package:flutter/material.dart';
 
 class EsewaPaymentHandler {
   static void processPayment({
@@ -17,27 +17,26 @@ class EsewaPaymentHandler {
           height: MediaQuery.of(sheetContext).size.height * 0.85,
           child: EsewaPayButton(
             paymentConfig: ESewaConfig.dev(
-              amount: double.parse(amount),
-              productCode: 'EPAYTEST',
-              secretKey: '8gBm/:&EnhH.1/q',
-              transactionUuid: transactionUuid,
-              successUrl: 'https://developer.esewa.com.np/success',
-              failureUrl: 'https://developer.esewa.com.np/failure',
+              amt: double.parse(amount),
+              pid: transactionUuid,
+              su: 'https://developer.esewa.com.np/success',
+              fu: 'https://developer.esewa.com.np/failure',
+              scd: 'EPAYTEST',
             ),
-            onSuccess: (EsewaPaymentResult result) {
+            onSuccess: (EsewaPaymentResponse result) {
               Navigator.pop(sheetContext);
-              if (result.hasData && result.data != null) {
-                // Returns Base64 payload in data string
-                onSuccess(transactionUuid, result.data!.data ?? '');
-              } else {
+              final refId = result.refId ?? '';
+              if (refId.isEmpty) {
                 onFailure(
-                  'Payment completed but no response payload was received.',
+                  'Payment completed but no reference ID was returned.',
                 );
+                return;
               }
+              onSuccess(transactionUuid, refId);
             },
-            onFailure: (error) {
+            onFailure: (String message) {
               Navigator.pop(sheetContext);
-              onFailure(error.toString());
+              onFailure(message);
             },
           ),
         );

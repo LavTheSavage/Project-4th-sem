@@ -59,6 +59,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
             total_days,
             total_price,
             status,
+            payment_status,
             received_by_renter,
             item:items (name, images),
             renter:profiles!bookings_renter_id_fkey (id, full_name)
@@ -215,7 +216,8 @@ class _NotificationsPageState extends State<NotificationsPage> {
     await supabase
         .from('bookings')
         .update({'received_by_renter': true, 'status': 'active'})
-        .eq('id', bookingId);
+        .eq('id', bookingId)
+        .eq('payment_status', 'paid');
 
     await markHandled(notificationId);
     fetchNotifications();
@@ -595,6 +597,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                       booking == null || booking['status'] != 'approved';
                   final showReceivedBtn =
                       booking?['status'] == 'approved' &&
+                      booking?['payment_status'] == 'paid' &&
                       booking?['received_by_renter'] == false &&
                       renter?['id'] == supabase.auth.currentUser!.id;
                   if (isSystem) {
